@@ -34,7 +34,7 @@ class PDFMeta:
                     new_version = ".".join(version[:-1] + [str(int(last) + 1)])
                 else:
                     # Fallback: La versión no está bien escrita, pero adjuntaremos un numero de versión al final.
-                    new_version = version + ".0"
+                    new_version = version[0] + ".0"
                 # Actualizar versión.
                 self.metadata["v"] = new_version
             self._changed_meta = True
