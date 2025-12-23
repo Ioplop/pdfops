@@ -1,6 +1,6 @@
-import io, json, base64, zlib
+import io, json, base64
 from typing import Any
-from pyhanko.pdf_utils import generic, content
+from pyhanko.pdf_utils import generic
 from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 import copy
