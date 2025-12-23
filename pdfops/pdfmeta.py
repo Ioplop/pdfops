@@ -5,10 +5,10 @@ from pyhanko.pdf_utils.reader import PdfFileReader
 from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
 import copy
 
-_PDFMETA_LATEST = "/ChepssPdfmetaLatest"
-_PDFMETA_HISTORY = "/ChepssPdfmetaHistory"
+_PDFMETA_LATEST = "/PdfopsPdfmetaLatest"
+_PDFMETA_HISTORY = "/PdfopsPdfmetaHistory"
 _PDFMETA_TYPE_KEY = "/Type"
-_PDFMETA_TYPE_VAL = "/ChepssPdfmeta"
+_PDFMETA_TYPE_VAL = "/PdfopsPdfmeta"
 
 class PDFMeta:
     VERSION = "1.0"
