@@ -159,7 +159,7 @@ class PDFProcessor:
                              x2: float,
                              y2: float,
                              category: str = "") -> None:
-        return self.meta_store_rect(Rectangle(name, page, x1, y1, x2, y2, category))
+        return self.meta_store_rect(Rectangle(name=name, category=category, page=page, x1=x1, y1=y1, x2=x2, y2=y2))
 
     def meta_find_rect(self, name: str, category: str | None = None) -> Rectangle | None:
         for r in self.rects:
@@ -194,7 +194,7 @@ class PDFProcessor:
                 i += 1
 
     def meta_edit_rect_data(self, name: str, page: int, x1: float, y1: float, x2: float, y2: float, category: str) -> None:
-        rect = Rectangle(name, category, page, x1, y1, x2, y2)
+        rect = Rectangle(name=name, category=category, page=page, x1=x1, y1=y1, x2=x2, y2=y2)
         self.meta_edit_rect(rect)
 
     def meta_edit_rect(self, rect: Rectangle) -> None:
@@ -206,8 +206,7 @@ class PDFProcessor:
             # Esta es una manera de copiar todos los campos de un rectángulo.
             for f in fields(rect):
                 setattr(original, f.name, getattr(rect, f.name))
-
-        self.meta_remove_rect(rect.name, category=rect.category)
+        self.dirty_meta = True
 
     def page_dimensions(self, page: int) -> tuple[float, float]:
         dim = self.dimensions[page]
@@ -220,7 +219,15 @@ class PDFProcessor:
     def norm_to_point_rect(self, rect: Rectangle) -> Rectangle:
         x1, y1 = self.norm_to_point(rect.page, rect.x1, rect.y1)
         x2, y2 = self.norm_to_point(rect.page, rect.x2, rect.y2)
-        return Rectangle(rect.name, rect.category, rect.page, x1, y1, x2, y2)
+        return Rectangle(
+            name=rect.name,
+            category=rect.category,
+            page=rect.page,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2
+        )
 
     def point_to_norm(self, page, x, y) -> tuple[float, float]:
         dim = self.dimensions[page]
@@ -229,13 +236,21 @@ class PDFProcessor:
     def point_to_norm_rect(self, rect: Rectangle) -> Rectangle:
         x1, y1 = self.point_to_norm(rect.page, rect.x1, rect.y1)
         x2, y2 = self.point_to_norm(rect.page, rect.x2, rect.y2)
-        return Rectangle(rect.name, rect.category, rect.page, x1, y1, x2, y2)
+        return Rectangle(
+            name=rect.name,
+            category=rect.category,
+            page=rect.page,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2
+        )
 
     def _measure_text_remaining_space(self, text, font_size, font, rect, wrap: bool, color=(0, 0, 0), h_align="left") -> tuple[float, float]:
         # Primero crearemos un documento auxiliar con una hoja para inyectar el documento, basándonos en la hoja real
         # Crear documento auxiliar
+        norm_rect = self.norm_to_point_rect(rect)
         if not text:
-            norm_rect = self.norm_to_point_rect(rect)
             return norm_rect.height, norm_rect.width
         # Dependiendo del modo de wrapping, calculamos el espacio horizontal y vertical de formas distintas.
         if not wrap:
@@ -249,7 +264,7 @@ class PDFProcessor:
                 font_obj.text_length(line, fontsize=font_size)
                 for line in lines
             )
-            horizontal_space = rect.width - max_width
+            horizontal_space = norm_rect.width - max_width
 
             # Aquí sumamos la altura total del texto basado en el número de líneas.
             # Calcular altura por línea
@@ -261,16 +276,15 @@ class PDFProcessor:
             leading_factor = 1.0
             line_height = base_line_height * leading_factor
             total_text_height = n_lines * line_height
-            vertical_space = rect.height - total_text_height
+            vertical_space = norm_rect.height - total_text_height
         else:
             # Crear hoja auxiliar para simular dibujo de texto
             aux_doc = fitz.open()
             pw, ph = self.norm_to_point(rect.page, 1, 1)
             aux_page: fitz.Page = aux_doc.new_page(width=pw, height=ph)
-            rect = self.norm_to_point_rect(rect)
             # Al dibujar un textbox, recibimos directamente el espacio vertical sobrante.
             vertical_space = aux_page.insert_textbox(
-                rect.as_fitz(),
+                norm_rect.as_fitz(),
                 text,
                 fontsize=font_size,
                 fontname=font,
@@ -613,13 +627,13 @@ class PDFProcessor:
         #  - y1, y2 stay the same (same vertical band)
         #  - x1 == x2 == end of text
         updated_rect = Rectangle(
-            rect.name,
-            rect.page,
-            rect.category,
-            new_x_norm,
-            rect.y1,
-            new_x_norm,
-            rect.y2,
+            name=rect.name,
+            category=rect.category,
+            page=rect.page,
+            x1=new_x_norm,
+            y1=rect.y1,
+            x2=new_x_norm,
+            y2=rect.y2,
         )
         self.meta_edit_rect(updated_rect)
 
