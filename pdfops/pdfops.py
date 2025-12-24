@@ -3,8 +3,8 @@ from dataclasses import dataclass, fields
 import base64
 import json
 import fitz
-from .pdfmeta import PDFMeta
 from .rectangles import Rectangle
+from .meta_adapters import MetaAdapter, StreamObjectMetaAdapter
 
 RECT_NAMESPACE = "pdfops.rect"
 
@@ -36,8 +36,9 @@ class PDFProcessor:
             rect = page.rect
             self.dimensions.append(PDFProcessor.PPDimension(rect.x0, rect.y0, rect.width, rect.height))
 
-    def __init__(self, pdf_data: bytes, b64: bool) -> None:
+    def __init__(self, pdf_data: bytes, b64: bool, meta_adapter: MetaAdapter | None = None) -> None:
         self._pdf_data = _b64_to_bytes(pdf_data) if b64 else pdf_data
+        self.meta_adapter : MetaAdapter = meta_adapter or StreamObjectMetaAdapter(pdf_data, RECT_NAMESPACE)
         self.dirty_fitz = False
         self.dirty_meta = False
         self._doc = fitz.open("pdf", self._pdf_data)
@@ -56,20 +57,11 @@ class PDFProcessor:
         #TODO: Make everything raise when accessed after closing, except for a small allow list.
 
     def _load_rects(self):
-        meta = PDFMeta(self._pdf_data, b64=False)
-        rects = meta.meta_get_multiple(ns=RECT_NAMESPACE)
-        self.rects = [Rectangle(r["name"], **r["content"]) for r in rects]
+        self.rects = self.meta_adapter.get_rects(self._pdf_data)
 
     def _save_rects(self):
-        meta = PDFMeta(self._pdf_data, b64=False)
-        # Remover rectángulos antiguos
-        prev_rects = meta.meta_get_multiple(ns=RECT_NAMESPACE)
-        for r in prev_rects:
-            meta.meta_remove_id(r["id"], ns=RECT_NAMESPACE)
-        # Crear rectángulos nuevos
-        for rect in self.rects:
-            meta.meta_add(name=rect.name, ns=RECT_NAMESPACE, obj=rect.as_dict(include_name=False))
-        self._pdf_data = meta.get_pdf()
+        self.meta_adapter.set_rects(self.rects, self._pdf_data)
+        self._pdf_data = self.meta_adapter.get_pdf()
         self.dirty_meta = False
 
     @property
