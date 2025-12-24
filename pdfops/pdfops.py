@@ -61,7 +61,12 @@ class PDFProcessor:
 
     def _save_rects(self):
         self.meta_adapter.set_rects(self.rects, self._pdf_data)
-        self._pdf_data = self.meta_adapter.get_pdf()
+        new_bytes = self.meta_adapter.get_pdf()
+        if new_bytes != self._pdf_data:
+            # Solo se gatilla reapertura si hubo cambios en nuestros bytes.
+            self.doc.close()
+            self._pdf_data = new_bytes
+            self._doc = fitz.open("pdf", self._pdf_data)
         self.dirty_meta = False
 
     @property
@@ -70,9 +75,7 @@ class PDFProcessor:
             self._pdf_data = self.doc.write()
             self.dirty_fitz = False
         if self.dirty_meta:
-            self.doc.close()
             self._save_rects()
-            self._doc = fitz.open("pdf", self._pdf_data)
         return self._pdf_data
 
     @property
